@@ -30,7 +30,7 @@ const flightFrames = [
     title: 'The screen moves first.',
     copy: 'A pure reducer folds the command over confirmed state. Canonical data is never mutated to fake responsiveness.',
     code: 'project(confirmed, activeIntent)',
-    state: 'projected in 12 ms',
+    state: 'projected before transport',
   },
   {
     signal: 'conditional dispatch',

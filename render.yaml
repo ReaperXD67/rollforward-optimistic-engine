@@ -15,6 +15,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: SCENARIO_MAX_ENTRIES
-        value: 256
+        value: "256"
       - key: SCENARIO_TTL_MS
-        value: 1800000
+        value: "1800000"
