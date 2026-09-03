@@ -15,7 +15,7 @@ The protected assets are canonical release state, operator intent, the idempoten
 | Delayed cross-tab message rewinds state | Strictly newer versions only |
 | In-flight write crosses a scenario reset | Client epoch and server generation fence |
 | Script injection through release or actor text | React text rendering; no raw HTML injection |
-| Dependency drift or known vulnerable package | Locked install, `npm audit`, and CI verification |
+| Dependency or workflow-action drift | Locked npm install, SHA-pinned workflow actions, Dependabot, audit, and CI verification |
 | Unnecessary server fingerprinting | Framework header disabled and Helmet defaults |
 
 ## Required before a public, multi-tenant deployment
