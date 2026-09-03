@@ -41,8 +41,8 @@ export function MutationLedger({
     <aside className="ledger-panel" id="ledger" aria-labelledby="ledger-title">
       <div className="panel-heading">
         <div>
-          <p className="overline">Mutation ledger</p>
           <h3 id="ledger-title">Intent to acknowledgement</h3>
+          <p className="panel-description">The flight recorder for every speculative command.</p>
         </div>
         <div className="ledger-actions">
           <button className="text-button" type="button" onClick={exportTranscript}>

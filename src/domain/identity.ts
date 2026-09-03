@@ -21,6 +21,8 @@ export function scenarioUuid(seed: number, sequence: number, scope: string): str
 }
 
 const clientInstanceKey = 'rollforward-client-instance-v1';
+const scenarioKey = 'rollforward-scenario-v1';
+const headlessScenarioId = '00000000-0000-4000-8000-000000000001';
 
 export function getClientInstanceId(): string {
   if (typeof sessionStorage === 'undefined') return 'headless-client';
@@ -29,5 +31,17 @@ export function getClientInstanceId(): string {
 
   const created = crypto.randomUUID();
   sessionStorage.setItem(clientInstanceKey, created);
+  return created;
+}
+
+/** One browser profile shares a server scenario; individual tabs keep distinct client identities. */
+export function getScenarioId(): string {
+  if (typeof localStorage === 'undefined') return headlessScenarioId;
+
+  const existing = localStorage.getItem(scenarioKey);
+  if (existing) return existing;
+
+  const created = crypto.randomUUID();
+  localStorage.setItem(scenarioKey, created);
   return created;
 }

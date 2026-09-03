@@ -9,6 +9,7 @@ import {
   type ReleaseCommand,
 } from '../shared/contracts.js';
 import { calmProfile, chaosKeyFor, latencyFor, outcomeFor } from './chaos.js';
+import { SessionRegistry, type SessionRegistryOptions } from './session-registry.js';
 import { ReleaseStore } from './store.js';
 
 function problem(
@@ -34,6 +35,30 @@ interface InFlightCommand {
   result: Promise<CommandResult>;
 }
 
+interface ScenarioState {
+  store: ReleaseStore;
+  chaos: ChaosProfile;
+  generation: number;
+  completedCommands: Map<string, IdempotencyRecord>;
+  inFlightCommands: Map<string, InFlightCommand>;
+}
+
+const scenarioIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function createScenarioState(): ScenarioState {
+  return {
+    store: new ReleaseStore(),
+    chaos: { ...calmProfile },
+    generation: 0,
+    completedCommands: new Map(),
+    inFlightCommands: new Map(),
+  };
+}
+
+function scenarioFor(response: Response): ScenarioState {
+  return response.locals.scenario as ScenarioState;
+}
+
 function fingerprint(command: ReleaseCommand): string {
   return JSON.stringify(command);
 }
@@ -53,20 +78,16 @@ function sendCommandResult(response: Response, result: CommandResult, replayed: 
   response.status(result.status).json({ problem: result.problem });
 }
 
-export function createApp() {
+export function createApp(sessionOptions: SessionRegistryOptions = {}) {
   const app = express();
-  const store = new ReleaseStore();
-  let chaos: ChaosProfile = { ...calmProfile };
-  let scenarioGeneration = 0;
-  const completedCommands = new Map<string, IdempotencyRecord>();
-  const inFlightCommands = new Map<string, InFlightCommand>();
+  const sessions = new SessionRegistry(createScenarioState, sessionOptions);
 
-  function remember(key: string, record: IdempotencyRecord): void {
-    if (completedCommands.size >= 512) {
-      const oldestKey = completedCommands.keys().next().value;
-      if (oldestKey) completedCommands.delete(oldestKey);
+  function remember(scenario: ScenarioState, key: string, record: IdempotencyRecord): void {
+    if (scenario.completedCommands.size >= 512) {
+      const oldestKey = scenario.completedCommands.keys().next().value;
+      if (oldestKey) scenario.completedCommands.delete(oldestKey);
     }
-    completedCommands.set(key, record);
+    scenario.completedCommands.set(key, record);
   }
 
   app.disable('x-powered-by');
@@ -75,7 +96,7 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'https://picsum.photos', 'https://fastly.picsum.photos'],
+          imgSrc: ["'self'", 'data:'],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'"],
           connectSrc: ["'self'"],
@@ -99,39 +120,57 @@ export function createApp() {
     next(error);
   });
 
+  app.use('/api', (request, response, next) => {
+    const scenarioId = request.header('X-Scenario-Id');
+    if (!scenarioId || !scenarioIdPattern.test(scenarioId)) {
+      response
+        .status(400)
+        .json(problem('invalid_command', 'X-Scenario-Id must contain a browser-scoped UUID.', false));
+      return;
+    }
+
+    response.locals.scenario = sessions.get(scenarioId);
+    response.set('X-Scenario-Isolation', 'browser');
+    next();
+  });
+
   app.get('/healthz', (_request, response) => {
-    response.json({ ok: true });
+    response.json({ ok: true, service: 'rollforward', activeScenarios: sessions.size });
   });
 
   app.get('/api/snapshot', (_request, response) => {
+    const scenario = scenarioFor(response);
     response.set('Cache-Control', 'no-store');
     response.json({
-      releases: store.list(),
-      chaos,
+      releases: scenario.store.list(),
+      chaos: scenario.chaos,
       serverTime: new Date().toISOString(),
     });
   });
 
   app.put('/api/chaos', (request, response) => {
+    const scenario = scenarioFor(response);
     const parsed = chaosProfileSchema.safeParse(request.body);
     if (!parsed.success) {
       response.status(400).json(problem('invalid_command', 'Chaos profile is invalid.', false));
       return;
     }
 
-    chaos = parsed.data;
-    response.json({ chaos });
+    scenario.chaos = parsed.data;
+    response.json({ chaos: scenario.chaos });
   });
 
   app.post('/api/reset', (_request, response) => {
-    scenarioGeneration += 1;
-    completedCommands.clear();
-    inFlightCommands.clear();
-    chaos = { ...calmProfile };
-    response.json({ releases: store.reset(), chaos });
+    const scenario = scenarioFor(response);
+    scenario.generation += 1;
+    scenario.completedCommands.clear();
+    scenario.inFlightCommands.clear();
+    scenario.chaos = { ...calmProfile };
+    response.json({ releases: scenario.store.reset(), chaos: scenario.chaos });
   });
 
   app.post('/api/releases/:releaseId/commands', async (request, response) => {
+    const scenario = scenarioFor(response);
     const idempotencyKey = request.header('Idempotency-Key');
     if (!idempotencyKey) {
       response
@@ -170,7 +209,7 @@ export function createApp() {
     }
 
     const commandFingerprint = fingerprint(parsed.data);
-    const completed = completedCommands.get(idempotencyKey);
+    const completed = scenario.completedCommands.get(idempotencyKey);
     if (completed) {
       if (completed.fingerprint !== commandFingerprint) {
         response
@@ -182,7 +221,7 @@ export function createApp() {
       return;
     }
 
-    const inFlight = inFlightCommands.get(idempotencyKey);
+    const inFlight = scenario.inFlightCommands.get(idempotencyKey);
     if (inFlight) {
       if (inFlight.fingerprint !== commandFingerprint) {
         response
@@ -194,7 +233,7 @@ export function createApp() {
       return;
     }
 
-    const current = store.get(parsed.data.releaseId);
+    const current = scenario.store.get(parsed.data.releaseId);
     if (!current) {
       response.status(404).json(problem('release_not_found', 'Release was not found.', false));
       return;
@@ -211,10 +250,10 @@ export function createApp() {
       return;
     }
     const chaosKey = chaosKeyFor(parsed.data, attempt);
-    const dispatchedGeneration = scenarioGeneration;
+    const dispatchedGeneration = scenario.generation;
     const result = (async (): Promise<CommandResult> => {
-      await new Promise((resolve) => setTimeout(resolve, latencyFor(chaos, chaosKey)));
-      if (dispatchedGeneration !== scenarioGeneration) {
+      await new Promise((resolve) => setTimeout(resolve, latencyFor(scenario.chaos, chaosKey)));
+      if (dispatchedGeneration !== scenario.generation) {
         return {
           status: 409,
           problem: {
@@ -225,7 +264,7 @@ export function createApp() {
         };
       }
 
-      const outcome = outcomeFor(chaos, chaosKey);
+      const outcome = outcomeFor(scenario.chaos, chaosKey);
       if (outcome === 'failure') {
         return {
           status: 503,
@@ -238,7 +277,7 @@ export function createApp() {
       }
 
       if (outcome === 'conflict') {
-        const latest = store.injectRemoteChange(parsed.data.releaseId);
+        const latest = scenario.store.injectRemoteChange(parsed.data.releaseId);
         return {
           status: 412,
           etag: `"${latest.version}"`,
@@ -252,10 +291,10 @@ export function createApp() {
       }
 
       try {
-        return { status: 200, release: store.apply(parsed.data, expectedVersion) };
+        return { status: 200, release: scenario.store.apply(parsed.data, expectedVersion) };
       } catch (error) {
         if (error instanceof Error && error.message === 'version_conflict') {
-          const latest = store.get(parsed.data.releaseId);
+          const latest = scenario.store.get(parsed.data.releaseId);
           return {
             status: 412,
             problem: {
@@ -278,15 +317,15 @@ export function createApp() {
       }
     })();
 
-    inFlightCommands.set(idempotencyKey, { fingerprint: commandFingerprint, result });
+    scenario.inFlightCommands.set(idempotencyKey, { fingerprint: commandFingerprint, result });
     const settled = await result;
-    const activeFlight = inFlightCommands.get(idempotencyKey);
-    if (activeFlight?.result === result) inFlightCommands.delete(idempotencyKey);
-    if (settled.status !== 503 && dispatchedGeneration === scenarioGeneration) {
-      remember(idempotencyKey, { fingerprint: commandFingerprint, result: settled });
+    const activeFlight = scenario.inFlightCommands.get(idempotencyKey);
+    if (activeFlight?.result === result) scenario.inFlightCommands.delete(idempotencyKey);
+    if (settled.status !== 503 && dispatchedGeneration === scenario.generation) {
+      remember(scenario, idempotencyKey, { fingerprint: commandFingerprint, result: settled });
     }
     sendCommandResult(response, settled, false);
   });
 
-  return { app, store };
+  return { app, sessions };
 }

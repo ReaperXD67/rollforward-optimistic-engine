@@ -10,6 +10,7 @@ import {
 import type { ChaosProfile, Release, ReleaseCommand } from '../../shared/contracts';
 import { stages } from '../../shared/stages';
 import type { EngineState } from '../domain/engine';
+import { scenarioProfiles } from '../domain/scenarios';
 import { MutationLedger } from './MutationLedger';
 
 type CreateCommand = <T extends ReleaseCommand['type']>(
@@ -17,24 +18,6 @@ type CreateCommand = <T extends ReleaseCommand['type']>(
   type: T,
   payload: Extract<ReleaseCommand, { type: T }>['payload'],
 ) => ReleaseCommand;
-
-const profiles: Array<{ name: string; copy: string; profile: ChaosProfile }> = [
-  {
-    name: 'Calm edge',
-    copy: 'Fast acknowledgements, no injected faults.',
-    profile: { seed: 43110, minLatencyMs: 180, maxLatencyMs: 620, failureRate: 0, conflictRate: 0 },
-  },
-  {
-    name: 'Long tail',
-    copy: 'Visible latency with occasional retryable loss.',
-    profile: { seed: 8, minLatencyMs: 900, maxLatencyMs: 3800, failureRate: 0.24, conflictRate: 0 },
-  },
-  {
-    name: 'Contention',
-    copy: 'Concurrent operators create stale writes.',
-    profile: { seed: 13, minLatencyMs: 420, maxLatencyMs: 1600, failureRate: 0.08, conflictRate: 0.4 },
-  },
-];
 
 function ReleaseCard({
   release,
@@ -77,7 +60,7 @@ function ReleaseCard({
           aria-valuenow={release.progress}
           aria-valuetext={`${release.progress} percent complete`}
         >
-          <i style={{ width: `${release.progress}%` }} />
+          <i style={{ transform: `scaleX(${release.progress / 100})` }} />
         </span>
       </div>
       <div className="release-actions">
@@ -145,12 +128,11 @@ export function CommandDeck({
       <div className="command-backdrop" aria-hidden="true" />
       <div className="command-heading">
         <div>
-          <p className="overline">Interactive command deck</p>
           <h2 id="command-title">Break the network. Keep the intent.</h2>
         </div>
         <p>
-          Choose a network profile, move releases, and watch confirmed truth diverge from—and
-          reconcile with—the interface in real time.
+          This is the live product. Choose a deterministic network, issue real conditional writes,
+          and watch the client reconcile with the API in real time.
         </p>
       </div>
 
@@ -174,7 +156,7 @@ export function CommandDeck({
           </button>
         </div>
         <div className="profile-controls">
-          {profiles.map(({ name, copy, profile }) => {
+          {scenarioProfiles.map(({ name, copy, profile }) => {
             const selected = chaos.seed === profile.seed;
             return (
               <button
@@ -208,8 +190,8 @@ export function CommandDeck({
         <div className="release-panel">
           <div className="panel-heading">
             <div>
-              <p className="overline">Release train</p>
               <h3>Three services in motion</h3>
+              <p className="panel-description">Projected state renders ahead of server acknowledgement.</p>
             </div>
             <div className="truth-key" aria-label="State legend">
               <span><i className="canonical-dot" /> canonical</span>

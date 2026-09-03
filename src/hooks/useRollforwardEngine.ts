@@ -8,6 +8,7 @@ import {
   projectReleases,
 } from '../domain/engine';
 import { getClientInstanceId, scenarioUuid } from '../domain/identity';
+import { stages } from '../../shared/stages';
 import { clearOutbox, readOutbox, writeOutbox } from '../storage/outbox';
 
 const defaultChaos: ChaosProfile = {
@@ -206,6 +207,42 @@ export function useRollforwardEngine() {
     }
   }, []);
 
+  const runGuidedScenario = useCallback(async (profile: ChaosProfile) => {
+    setLoadError(undefined);
+    runEpoch.current += 1;
+    for (const timer of retryTimers.current.values()) window.clearTimeout(timer);
+    retryTimers.current.clear();
+    inFlight.current.clear();
+
+    try {
+      await clearOutbox();
+      const snapshot = await resetScenario();
+      const savedProfile = await setChaos(profile);
+      scenarioSequence.current = 1;
+      setChaosState(savedProfile);
+      dispatch({ type: 'reset', snapshot: { ...snapshot, chaos: savedProfile } });
+
+      const release = snapshot.releases[0];
+      if (!release) return;
+      const stageIndex = stages.indexOf(release.stage);
+      const nextStage = stages[Math.min(stageIndex + 1, stages.length - 1)];
+      if (nextStage === release.stage) return;
+
+      const command: ReleaseCommand = {
+        id: scenarioUuid(profile.seed, 1, `${clientInstanceId.current}:${release.id}:move_stage`),
+        releaseId: release.id,
+        type: 'move_stage',
+        payload: { stage: nextStage },
+        actor: 'Aman Kumar',
+        createdAt: new Date().toISOString(),
+        scenarioSequence: 1,
+      };
+      dispatch({ type: 'enqueue', command });
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to start the guided failure scenario.');
+    }
+  }, []);
+
   return {
     state,
     releases,
@@ -215,6 +252,7 @@ export function useRollforwardEngine() {
     createCommand,
     updateChaos,
     reset,
+    runGuidedScenario,
     retryLoad,
     setOnline: (online: boolean) => dispatch({ type: 'set_online', online }),
     clearSettled: () => dispatch({ type: 'clear_settled' }),

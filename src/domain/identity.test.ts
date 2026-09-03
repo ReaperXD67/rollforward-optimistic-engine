@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scenarioUuid } from './identity';
+import { getScenarioId, scenarioUuid } from './identity';
 
 describe('scenario identity', () => {
   it('repeats the same UUID for the same seeded action', () => {
@@ -20,5 +20,8 @@ describe('scenario identity', () => {
 
     expect(ids.size).toBe(4);
   });
-});
 
+  it('provides a valid deterministic scenario identity outside a browser', () => {
+    expect(getScenarioId()).toBe('00000000-0000-4000-8000-000000000001');
+  });
+});

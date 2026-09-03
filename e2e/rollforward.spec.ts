@@ -23,6 +23,16 @@ test('projects immediately, contains a transient failure, and converges', async 
   await expect(page.getByText('Server truth advanced')).toBeVisible();
 });
 
+test('turns the hero promise into a one-click deterministic failure transcript', async ({ page }) => {
+  await page.getByRole('button', { name: 'Run the failure path' }).click();
+
+  await expect(page.getByRole('button', { name: 'Arming scenario' })).toBeDisabled();
+  await expect(page.getByText('Transient failure contained')).toBeVisible({ timeout: 6_000 });
+  await expect(page.getByText('Retry released')).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText('Server truth advanced')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Run the failure path' })).toBeEnabled();
+});
+
 test('restores offline intent from IndexedDB after a reload', async ({ page }) => {
   const atlas = page.locator('.release-card').filter({ hasText: 'Atlas search relevance' });
   await page.getByRole('button', { name: 'Offline', exact: true }).click();
@@ -80,13 +90,13 @@ test('stays usable and overflow-free at a narrow mobile viewport', async ({ page
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Act now. Reconcile truth later.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Stress the system' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Enter command deck' })).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
   expect(hasHorizontalOverflow).toBe(false);
 
-  await page.getByRole('link', { name: 'Stress the system' }).click();
+  await page.getByRole('link', { name: 'Enter command deck' }).click();
   await expect(page.getByRole('heading', { name: 'Break the network. Keep the intent.' })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

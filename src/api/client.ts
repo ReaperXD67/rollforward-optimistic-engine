@@ -5,6 +5,7 @@ import type {
   ReleaseCommand,
   Snapshot,
 } from '../../shared/contracts';
+import { getScenarioId } from '../domain/identity';
 
 export class ApiProblemError extends Error {
   constructor(
@@ -56,8 +57,16 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
+function apiHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  return {
+    Accept: 'application/json',
+    'X-Scenario-Id': getScenarioId(),
+    ...headers,
+  };
+}
+
 export async function getSnapshot(): Promise<Snapshot> {
-  return parseResponse<Snapshot>(await fetch('/api/snapshot', { headers: { Accept: 'application/json' } }));
+  return parseResponse<Snapshot>(await fetch('/api/snapshot', { headers: apiHeaders() }));
 }
 
 export async function sendCommand(
@@ -67,13 +76,12 @@ export async function sendCommand(
 ): Promise<{ release: Release; replayed: boolean }> {
   const response = await fetch(`/api/releases/${encodeURIComponent(command.releaseId)}/commands`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
+    headers: apiHeaders({
       'Content-Type': 'application/json',
       'Idempotency-Key': command.id,
       'If-Match': `"${expectedVersion}"`,
       'X-Mutation-Attempt': String(attempt),
-    },
+    }),
     body: JSON.stringify(command),
   });
   return parseResponse(response);
@@ -82,7 +90,7 @@ export async function sendCommand(
 export async function setChaos(profile: ChaosProfile): Promise<ChaosProfile> {
   const response = await fetch('/api/chaos', {
     method: 'PUT',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(profile),
   });
   const result = await parseResponse<{ chaos: ChaosProfile }>(response);
@@ -90,7 +98,7 @@ export async function setChaos(profile: ChaosProfile): Promise<ChaosProfile> {
 }
 
 export async function resetScenario(): Promise<Snapshot> {
-  const response = await fetch('/api/reset', { method: 'POST', headers: { Accept: 'application/json' } });
+  const response = await fetch('/api/reset', { method: 'POST', headers: apiHeaders() });
   const result = await parseResponse<Omit<Snapshot, 'serverTime'>>(response);
   return { ...result, serverTime: new Date().toISOString() };
 }

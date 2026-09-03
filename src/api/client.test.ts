@@ -7,7 +7,8 @@ afterEach(() => {
 
 describe('API response boundary', () => {
   it('reports an empty upstream response without leaking a JSON parser error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 502 })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 502 }));
+    vi.stubGlobal('fetch', fetchMock);
 
     await expect(getSnapshot()).rejects.toMatchObject<ApiProblemError>({
       status: 502,
@@ -16,6 +17,11 @@ describe('API response boundary', () => {
         message: 'Request failed with status 502.',
         retryable: true,
       },
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/snapshot', {
+      headers: expect.objectContaining({
+        'X-Scenario-Id': '00000000-0000-4000-8000-000000000001',
+      }),
     });
   });
 
