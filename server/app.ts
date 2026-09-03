@@ -1,7 +1,14 @@
-import cors from 'cors';
-import express from 'express';
-import { chaosProfileSchema, commandSchema, type ApiProblem, type ChaosProfile } from '../shared/contracts.js';
-import { calmProfile, latencyFor, outcomeFor } from './chaos.js';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import helmet from 'helmet';
+import {
+  chaosProfileSchema,
+  commandSchema,
+  type ApiProblem,
+  type ChaosProfile,
+  type Release,
+  type ReleaseCommand,
+} from '../shared/contracts.js';
+import { calmProfile, chaosKeyFor, latencyFor, outcomeFor } from './chaos.js';
 import { ReleaseStore } from './store.js';
 
 function problem(
@@ -13,13 +20,84 @@ function problem(
   return { problem: { code, message, retryable, latest } };
 }
 
+type CommandResult =
+  | { status: 200; release: Release }
+  | { status: 404 | 409 | 412 | 503; problem: ApiProblem; etag?: string };
+
+interface IdempotencyRecord {
+  fingerprint: string;
+  result: CommandResult;
+}
+
+interface InFlightCommand {
+  fingerprint: string;
+  result: Promise<CommandResult>;
+}
+
+function fingerprint(command: ReleaseCommand): string {
+  return JSON.stringify(command);
+}
+
+function sendCommandResult(response: Response, result: CommandResult, replayed: boolean): void {
+  if (replayed) response.set('X-Idempotent-Replay', 'true');
+  if (result.status === 200) {
+    response
+      .status(200)
+      .set('ETag', `"${result.release.version}"`)
+      .json({ release: result.release, replayed });
+    return;
+  }
+
+  if (result.etag) response.set('ETag', result.etag);
+  if (result.status === 503) response.set('Retry-After', '1');
+  response.status(result.status).json({ problem: result.problem });
+}
+
 export function createApp() {
   const app = express();
   const store = new ReleaseStore();
   let chaos: ChaosProfile = { ...calmProfile };
+  let scenarioGeneration = 0;
+  const completedCommands = new Map<string, IdempotencyRecord>();
+  const inFlightCommands = new Map<string, InFlightCommand>();
 
-  app.use(cors());
+  function remember(key: string, record: IdempotencyRecord): void {
+    if (completedCommands.size >= 512) {
+      const oldestKey = completedCommands.keys().next().value;
+      if (oldestKey) completedCommands.delete(oldestKey);
+    }
+    completedCommands.set(key, record);
+  }
+
+  app.disable('x-powered-by');
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https://picsum.photos', 'https://fastly.picsum.photos'],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          connectSrc: ["'self'"],
+        },
+      },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      referrerPolicy: { policy: 'no-referrer' },
+    }),
+  );
   app.use(express.json({ limit: '32kb' }));
+  app.use((error: unknown, _request: Request, response: Response, next: NextFunction) => {
+    const parserError = error as { type?: string };
+    if (parserError?.type === 'entity.too.large') {
+      response.status(413).json(problem('invalid_command', 'JSON body exceeds the 32 KB limit.', false));
+      return;
+    }
+    if (parserError?.type === 'entity.parse.failed') {
+      response.status(400).json(problem('invalid_command', 'JSON body is malformed.', false));
+      return;
+    }
+    next(error);
+  });
 
   app.get('/healthz', (_request, response) => {
     response.json({ ok: true });
@@ -46,6 +124,9 @@ export function createApp() {
   });
 
   app.post('/api/reset', (_request, response) => {
+    scenarioGeneration += 1;
+    completedCommands.clear();
+    inFlightCommands.clear();
     chaos = { ...calmProfile };
     response.json({ releases: store.reset(), chaos });
   });
@@ -59,24 +140,57 @@ export function createApp() {
       return;
     }
 
-    const previous = store.responseFor(idempotencyKey);
-    if (previous) {
-      response.set('X-Idempotent-Replay', 'true').json({ release: previous, replayed: true });
-      return;
-    }
-
-    const rawVersion = request.header('If-Match')?.replaceAll('"', '');
-    const expectedVersion = Number(rawVersion);
-    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+    const versionMatch = request.header('If-Match')?.match(/^"([1-9]\d*)"$/);
+    const expectedVersion = Number(versionMatch?.[1]);
+    if (!versionMatch || !Number.isSafeInteger(expectedVersion)) {
       response
         .status(428)
         .json(problem('missing_precondition', 'If-Match must contain a resource version.', false));
       return;
     }
 
-    const parsed = commandSchema.safeParse({ ...request.body, releaseId: request.params.releaseId });
+    const parsed = commandSchema.safeParse(request.body);
     if (!parsed.success) {
       response.status(400).json(problem('invalid_command', 'Command payload is invalid.', false));
+      return;
+    }
+
+    if (parsed.data.releaseId !== request.params.releaseId) {
+      response
+        .status(400)
+        .json(problem('invalid_command', 'Command releaseId must match the request path.', false));
+      return;
+    }
+
+    if (parsed.data.id !== idempotencyKey) {
+      response
+        .status(400)
+        .json(problem('invalid_command', 'Idempotency-Key must match the command id.', false));
+      return;
+    }
+
+    const commandFingerprint = fingerprint(parsed.data);
+    const completed = completedCommands.get(idempotencyKey);
+    if (completed) {
+      if (completed.fingerprint !== commandFingerprint) {
+        response
+          .status(409)
+          .json(problem('idempotency_conflict', 'This idempotency key belongs to another command.', false));
+        return;
+      }
+      sendCommandResult(response, completed.result, true);
+      return;
+    }
+
+    const inFlight = inFlightCommands.get(idempotencyKey);
+    if (inFlight) {
+      if (inFlight.fingerprint !== commandFingerprint) {
+        response
+          .status(409)
+          .json(problem('idempotency_conflict', 'This idempotency key is already executing another command.', false));
+        return;
+      }
+      sendCommandResult(response, await inFlight.result, true);
       return;
     }
 
@@ -86,42 +200,93 @@ export function createApp() {
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, latencyFor(chaos, idempotencyKey)));
-    const outcome = outcomeFor(chaos, idempotencyKey);
-
-    if (outcome === 'failure') {
-      response
-        .status(503)
-        .set('Retry-After', '1')
-        .json(problem('transient_failure', 'The simulated edge dropped this write.', true));
+    const attemptHeader = request.header('X-Mutation-Attempt') ?? '1';
+    if (!/^[1-9]\d*$/.test(attemptHeader)) {
+      response.status(400).json(problem('invalid_command', 'Mutation attempt must be a positive integer.', false));
       return;
     }
-
-    if (outcome === 'conflict') {
-      const latest = store.injectRemoteChange(parsed.data.releaseId);
-      response
-        .status(412)
-        .set('ETag', `"${latest.version}"`)
-        .json(problem('version_conflict', 'A remote operator changed this release first.', false, latest));
+    const attempt = Number(attemptHeader);
+    if (!Number.isSafeInteger(attempt)) {
+      response.status(400).json(problem('invalid_command', 'Mutation attempt is out of range.', false));
       return;
     }
-
-    try {
-      const release = store.apply(parsed.data, idempotencyKey, expectedVersion);
-      response.set('ETag', `"${release.version}"`).json({ release, replayed: false });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'version_conflict') {
-        const latest = store.get(parsed.data.releaseId);
-        response
-          .status(412)
-          .json(problem('version_conflict', 'The release version no longer matches.', false, latest));
-        return;
+    const chaosKey = chaosKeyFor(parsed.data, attempt);
+    const dispatchedGeneration = scenarioGeneration;
+    const result = (async (): Promise<CommandResult> => {
+      await new Promise((resolve) => setTimeout(resolve, latencyFor(chaos, chaosKey)));
+      if (dispatchedGeneration !== scenarioGeneration) {
+        return {
+          status: 409,
+          problem: {
+            code: 'scenario_reset',
+            message: 'The scenario reset before this command reached canonical state.',
+            retryable: false,
+          },
+        };
       }
 
-      response.status(404).json(problem('release_not_found', 'Release was not found.', false));
+      const outcome = outcomeFor(chaos, chaosKey);
+      if (outcome === 'failure') {
+        return {
+          status: 503,
+          problem: {
+            code: 'transient_failure',
+            message: 'The simulated edge dropped this write.',
+            retryable: true,
+          },
+        };
+      }
+
+      if (outcome === 'conflict') {
+        const latest = store.injectRemoteChange(parsed.data.releaseId);
+        return {
+          status: 412,
+          etag: `"${latest.version}"`,
+          problem: {
+            code: 'version_conflict',
+            message: 'A remote operator changed this release first.',
+            retryable: false,
+            latest,
+          },
+        };
+      }
+
+      try {
+        return { status: 200, release: store.apply(parsed.data, expectedVersion) };
+      } catch (error) {
+        if (error instanceof Error && error.message === 'version_conflict') {
+          const latest = store.get(parsed.data.releaseId);
+          return {
+            status: 412,
+            problem: {
+              code: 'version_conflict',
+              message: 'The release version no longer matches.',
+              retryable: false,
+              latest,
+            },
+          };
+        }
+
+        return {
+          status: 404,
+          problem: {
+            code: 'release_not_found',
+            message: 'Release was not found.',
+            retryable: false,
+          },
+        };
+      }
+    })();
+
+    inFlightCommands.set(idempotencyKey, { fingerprint: commandFingerprint, result });
+    const settled = await result;
+    const activeFlight = inFlightCommands.get(idempotencyKey);
+    if (activeFlight?.result === result) inFlightCommands.delete(idempotencyKey);
+    if (settled.status !== 503 && dispatchedGeneration === scenarioGeneration) {
+      remember(idempotencyKey, { fingerprint: commandFingerprint, result: settled });
     }
+    sendCommandResult(response, settled, false);
   });
 
   return { app, store };
 }
-

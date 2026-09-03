@@ -38,6 +38,8 @@ export interface EngineState {
 
 export type EngineAction =
   | { type: 'hydrate'; snapshot: Snapshot }
+  | { type: 'restore'; mutations: MutationRecord[] }
+  | { type: 'merge_remote'; release: Release }
   | { type: 'enqueue'; command: ReleaseCommand }
   | { type: 'send'; mutationId: string; expectedVersion: number }
   | { type: 'acknowledge'; mutationId: string; release: Release; replayed: boolean }
@@ -152,6 +154,49 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
       ],
       hydrated: true,
       serverTime: action.snapshot.serverTime,
+    };
+  }
+
+  if (action.type === 'restore') {
+    const restored = action.mutations
+      .filter((mutation) => state.confirmed[mutation.command.releaseId])
+      .map((mutation) => ({
+        ...mutation,
+        status: 'queued' as const,
+        expectedVersion: state.confirmed[mutation.command.releaseId].version,
+        error: undefined,
+      }));
+    if (!restored.length) return state;
+    return {
+      ...state,
+      mutations: restored,
+      ledger: [
+        event(
+          'recovery',
+          'Durable outbox restored',
+          `${restored.length} local intent${restored.length === 1 ? '' : 's'} recovered after reload.`,
+        ),
+        ...state.ledger,
+      ],
+    };
+  }
+
+  if (action.type === 'merge_remote') {
+    const current = state.confirmed[action.release.id];
+    if (current && current.version >= action.release.version) return state;
+    return {
+      ...state,
+      confirmed: { ...state.confirmed, [action.release.id]: action.release },
+      ledger: [
+        event(
+          'server',
+          'Cross-tab truth merged',
+          `${action.release.service} advanced to v${action.release.version} in another tab.`,
+          undefined,
+          action.release.id,
+        ),
+        ...state.ledger,
+      ],
     };
   }
 
@@ -329,4 +374,3 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   return state;
 }
-

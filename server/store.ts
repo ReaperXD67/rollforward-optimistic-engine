@@ -49,7 +49,6 @@ function cloneRelease(release: Release): Release {
 
 export class ReleaseStore {
   private releases = new Map<string, Release>();
-  private idempotentResponses = new Map<string, Release>();
 
   constructor() {
     this.reset();
@@ -57,7 +56,6 @@ export class ReleaseStore {
 
   reset(): Release[] {
     this.releases = new Map(baseline.map((release) => [release.id, cloneRelease(release)]));
-    this.idempotentResponses.clear();
     return this.list();
   }
 
@@ -70,12 +68,7 @@ export class ReleaseStore {
     return release ? cloneRelease(release) : undefined;
   }
 
-  responseFor(key: string): Release | undefined {
-    const release = this.idempotentResponses.get(key);
-    return release ? cloneRelease(release) : undefined;
-  }
-
-  apply(command: ReleaseCommand, key: string, expectedVersion: number): Release {
+  apply(command: ReleaseCommand, expectedVersion: number): Release {
     const current = this.releases.get(command.releaseId);
     if (!current) throw new Error('release_not_found');
     if (current.version !== expectedVersion) throw new Error('version_conflict');
@@ -97,7 +90,6 @@ export class ReleaseStore {
     }
 
     this.releases.set(next.id, next);
-    this.idempotentResponses.set(key, next);
     return cloneRelease(next);
   }
 
@@ -119,4 +111,3 @@ export class ReleaseStore {
     return cloneRelease(next);
   }
 }
-

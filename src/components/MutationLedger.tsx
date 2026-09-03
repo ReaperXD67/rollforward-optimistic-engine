@@ -21,6 +21,22 @@ export function MutationLedger({
     ['queued', 'in_flight', 'retry_wait'].includes(mutation.status),
   ).length;
 
+  function exportTranscript() {
+    const transcript = {
+      exportedAt: new Date().toISOString(),
+      mutations,
+      events: [...events].reverse(),
+    };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(transcript, null, 2)], { type: 'application/json' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'rollforward-mutation-transcript.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <aside className="ledger-panel" id="ledger" aria-labelledby="ledger-title">
       <div className="panel-heading">
@@ -28,9 +44,14 @@ export function MutationLedger({
           <p className="overline">Mutation ledger</p>
           <h3 id="ledger-title">Intent to acknowledgement</h3>
         </div>
-        <button className="text-button" type="button" onClick={onClear}>
-          Clear settled
-        </button>
+        <div className="ledger-actions">
+          <button className="text-button" type="button" onClick={exportTranscript}>
+            Export transcript
+          </button>
+          <button className="text-button" type="button" onClick={onClear}>
+            Clear settled
+          </button>
+        </div>
       </div>
 
       <div className="queue-strip" aria-label={`${activeCount} active mutations`}>
@@ -66,4 +87,3 @@ export function MutationLedger({
     </aside>
   );
 }
-

@@ -27,12 +27,12 @@ const profiles: Array<{ name: string; copy: string; profile: ChaosProfile }> = [
   {
     name: 'Long tail',
     copy: 'Visible latency with occasional retryable loss.',
-    profile: { seed: 88217, minLatencyMs: 900, maxLatencyMs: 3800, failureRate: 0.24, conflictRate: 0 },
+    profile: { seed: 8, minLatencyMs: 900, maxLatencyMs: 3800, failureRate: 0.24, conflictRate: 0 },
   },
   {
     name: 'Contention',
     copy: 'Concurrent operators create stale writes.',
-    profile: { seed: 21904, minLatencyMs: 420, maxLatencyMs: 1600, failureRate: 0.08, conflictRate: 0.4 },
+    profile: { seed: 13, minLatencyMs: 420, maxLatencyMs: 1600, failureRate: 0.08, conflictRate: 0.4 },
   },
 ];
 
@@ -68,7 +68,15 @@ function ReleaseCard({
           <span>current stage</span>
           <strong>{release.stage}</strong>
         </div>
-        <span className="stage-progress" aria-label={`${release.progress} percent complete`}>
+        <span
+          className="stage-progress"
+          role="progressbar"
+          aria-label={`${release.title} progress`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={release.progress}
+          aria-valuetext={`${release.progress} percent complete`}
+        >
           <i style={{ width: `${release.progress}%` }} />
         </span>
       </div>
@@ -111,6 +119,7 @@ export function CommandDeck({
   updateChaos,
   setOnline,
   reset,
+  retryLoad,
   clearSettled,
 }: {
   state: EngineState;
@@ -122,6 +131,7 @@ export function CommandDeck({
   updateChaos: (profile: ChaosProfile) => Promise<void>;
   setOnline: (online: boolean) => void;
   reset: () => Promise<void>;
+  retryLoad: () => Promise<void>;
   clearSettled: () => void;
 }) {
   const activeByRelease = new Set(
@@ -185,7 +195,14 @@ export function CommandDeck({
         </button>
       </div>
 
-      {loadError ? <div className="error-banner" role="alert">{loadError}</div> : null}
+      {loadError ? (
+        <div className="error-banner" role="alert">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => void retryLoad()}>
+            Retry connection
+          </button>
+        </div>
+      ) : null}
 
       <div className="command-layout">
         <div className="release-panel">
@@ -222,4 +239,3 @@ export function CommandDeck({
     </section>
   );
 }
-

@@ -1,4 +1,4 @@
-import type { ChaosProfile } from '../shared/contracts.js';
+import type { ChaosProfile, ReleaseCommand } from '../shared/contracts.js';
 
 export const calmProfile: ChaosProfile = {
   seed: 43110,
@@ -29,6 +29,13 @@ export function latencyFor(profile: ChaosProfile, key: string): number {
   return Math.round(profile.minLatencyMs + stableUnit(profile.seed, key, 'latency') * range);
 }
 
+export function chaosKeyFor(
+  command: Pick<ReleaseCommand, 'releaseId' | 'type' | 'scenarioSequence'>,
+  attempt: number,
+): string {
+  return `${command.releaseId}:${command.type}:sequence-${command.scenarioSequence}:attempt-${attempt}`;
+}
+
 export function outcomeFor(
   profile: ChaosProfile,
   key: string,
@@ -39,4 +46,3 @@ export function outcomeFor(
   if (unit < profile.failureRate + profile.conflictRate) return 'conflict';
   return 'accept';
 }
-

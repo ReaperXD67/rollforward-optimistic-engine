@@ -8,6 +8,12 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly' },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -16,7 +22,11 @@ export default tseslint.config(
         window: 'readonly',
         navigator: 'readonly',
         crypto: 'readonly',
+        indexedDB: 'readonly',
+        IDBDatabase: 'readonly',
         BroadcastChannel: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
         HTMLElement: 'readonly',
         HTMLButtonElement: 'readonly',
         setTimeout: 'readonly',
@@ -24,7 +34,8 @@ export default tseslint.config(
         fetch: 'readonly',
         RequestInit: 'readonly',
         HeadersInit: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        process: 'readonly'
       },
     },
     plugins: {
@@ -38,4 +49,3 @@ export default tseslint.config(
     },
   },
 );
-

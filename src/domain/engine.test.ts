@@ -41,6 +41,7 @@ function command(id: string, progress: number): ReleaseCommand {
     payload: { progress },
     actor: 'Aman Kumar',
     createdAt: '2026-09-03T00:00:01.000Z',
+    scenarioSequence: 1,
   };
 }
 
@@ -115,5 +116,42 @@ describe('optimistic engine', () => {
     expect(state.mutations[0].status).toBe('conflict');
     expect(state.ledger[0].title).toContain('rolled back');
   });
-});
 
+  it('restores interrupted mutations as queued with current canonical versions', () => {
+    const id = crypto.randomUUID();
+    const hydrated = engineReducer(initialEngineState, { type: 'hydrate', snapshot });
+    const restored = engineReducer(hydrated, {
+      type: 'restore',
+      mutations: [
+        {
+          command: command(id, 50),
+          status: 'in_flight',
+          expectedVersion: 0,
+          attempts: 1,
+        },
+      ],
+    });
+
+    expect(restored.mutations[0]).toMatchObject({
+      status: 'queued',
+      expectedVersion: release.version,
+      attempts: 1,
+    });
+    expect(projectReleases(restored)[0].progress).toBe(50);
+    expect(restored.ledger[0].title).toBe('Durable outbox restored');
+  });
+
+  it('merges only newer cross-tab truth', () => {
+    const hydrated = engineReducer(initialEngineState, { type: 'hydrate', snapshot });
+    const newer = { ...release, version: 3, progress: 70 };
+    const merged = engineReducer(hydrated, { type: 'merge_remote', release: newer });
+    const ignored = engineReducer(merged, {
+      type: 'merge_remote',
+      release: { ...release, version: 2, progress: 10 },
+    });
+
+    expect(merged.confirmed[release.id]).toEqual(newer);
+    expect(ignored).toBe(merged);
+    expect(ignored.confirmed[release.id].progress).toBe(70);
+  });
+});
