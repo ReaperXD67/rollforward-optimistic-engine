@@ -2,6 +2,8 @@
 
 **Act now. Reconcile truth later.**
 
+[![Verification](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml)
+
 ROLLFORWARD is a release-command workspace built to demonstrate senior full-stack judgment under the hardest part of optimistic interfaces: the unhappy path.
 
 The product lets operators coordinate a production rollout while a deterministic network simulator injects latency, failure, duplication, and version conflicts. Every speculative action is visible, reversible, idempotent, and traceable from intent to server acknowledgement.
@@ -15,7 +17,7 @@ The commit history deliberately separates the role decision, the working engine,
 ## Reviewer path
 
 1. Read [DECISIONS.md](./DECISIONS.md) for the product and engineering tradeoffs.
-2. Inspect the [architecture and correctness model](./docs/ARCHITECTURE.md).
+2. Follow the [90-second reviewer guide](./docs/REVIEWER_GUIDE.md), then inspect the [architecture and correctness model](./docs/ARCHITECTURE.md).
 3. Run the app and select **Long tail** or **Contention**.
 4. Trigger concurrent mutations, injected failures, and stale-version conflicts.
 5. Inspect or export the mutation ledger, then replay the deterministic scenario.
@@ -37,6 +39,13 @@ npm run check
 ```
 
 `check` runs static analysis, the reducer/API test suite, and both production builds.
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+The real-browser suite verifies deterministic retry and conflict flows, IndexedDB recovery, cross-tab truth propagation, responsive overflow, and axe-core accessibility rules.
 
 ## Architecture at a glance
 
@@ -72,6 +81,6 @@ Unsettled mutations are transactionally persisted in IndexedDB. Interrupted in-f
 - [x] Adversarial reducer, API, chaos, and outbox tests
 - [x] Responsive and reduced-motion implementation
 - [x] Dependency audit and continuous verification
-- [ ] Final reviewer evidence
+- [x] Final reviewer evidence
 
 > This repository does not contain Anzibloom's private starter package. The published assessment rules state that the package is downloaded only after starting the fixed 24-hour attempt. Material AI assistance will be disclosed here and in `DECISIONS.md` before any official submission.

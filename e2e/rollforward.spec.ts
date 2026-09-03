@@ -36,6 +36,40 @@ test('restores offline intent from IndexedDB after a reload', async ({ page }) =
   await expect(page.getByText('Server truth advanced')).toBeVisible({ timeout: 5_000 });
 });
 
+test('makes concurrent optimistic writes converge through explicit conflicts', async ({ page }) => {
+  await page.getByRole('button', { name: 'Contention' }).click();
+  const atlas = page.locator('.release-card').filter({ hasText: 'Atlas search relevance' });
+  const ledger = page.locator('.release-card').filter({ hasText: 'Ledger idempotency keys' });
+  const prism = page.locator('.release-card').filter({ hasText: 'Prism telemetry envelope' });
+  await atlas.getByRole('button', { name: 'Advance to deploying' }).click();
+  await ledger.getByRole('button', { name: 'Advance to monitoring' }).click();
+  await prism.getByRole('button', { name: 'Advance to verifying' }).click();
+
+  await expect(page.getByText('Stale intent rolled back')).toHaveCount(2, { timeout: 6_000 });
+  await expect(page.getByLabel('0 active mutations')).toBeVisible();
+  await expect(
+    atlas.getByText('server v5'),
+  ).toBeVisible();
+  await expect(
+    ledger.getByText('server v8'),
+  ).toBeVisible();
+  await expect(
+    prism.getByText('server v3'),
+  ).toBeVisible();
+});
+
+test('propagates newer canonical truth to another tab', async ({ page, context }) => {
+  const peer = await context.newPage();
+  await peer.goto('/');
+  await expect(peer.getByRole('heading', { name: 'Three services in motion' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Advance to deploying' }).click();
+
+  const peerAtlas = peer.locator('.release-card').filter({ hasText: 'Atlas search relevance' });
+  await expect(peerAtlas.getByText('server v5')).toBeVisible({ timeout: 3_000 });
+  await expect(peer.getByText('Cross-tab truth merged')).toBeVisible();
+});
+
 test('has no automatically detectable accessibility violations', async ({ page }) => {
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

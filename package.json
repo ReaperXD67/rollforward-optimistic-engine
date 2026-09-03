@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "concurrently -k -n web,api -c green,cyan \"vite\" \"tsx watch server/index.ts\"",
     "clean": "node scripts/clean.mjs",

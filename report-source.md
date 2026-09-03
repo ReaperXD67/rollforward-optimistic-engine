@@ -20,11 +20,11 @@ The assessment UI states that starting a Git take-home creates a fixed 24-hour d
 
 The candidate's public GitHub account shows recent, inspectable work across the exact Full-stack surface:
 
-- **MinePulse:** TypeScript, Next.js, PostgreSQL, Redis, Java/Paper plugin, Docker, and production runbooks.
-- **Revive AI:** TypeScript, Next.js, Cloudflare Workers, payment integrations, auditability, and explainable automation.
-- **Autonomous Personal Agent:** Python/FastAPI, PostgreSQL, Redis, Docker, security policy, and durable workflows.
-- **Distributed Search Typeahead:** FastAPI, PostgreSQL, multi-node Redis, batching, failover, metrics, and a React client.
-- **FinShot:** TypeScript, React, Express, MongoDB, analytics, and document extraction.
+- **[MinePulse](https://github.com/ReaperXD67/MinePulse):** TypeScript, Next.js, PostgreSQL, Redis, Java/Paper plugin, Docker, and production runbooks.
+- **[Revive AI](https://github.com/ReaperXD67/revive-ai):** TypeScript, Next.js, Cloudflare Workers, payment integrations, auditability, and explainable automation.
+- **[Autonomous Personal Agent](https://github.com/ReaperXD67/autonomous-personal-agent):** Python/FastAPI, PostgreSQL, Redis, Docker, security policy, and durable workflows.
+- **[Distributed Search Typeahead](https://github.com/ReaperXD67/distributed-search-typeahead):** FastAPI, PostgreSQL, multi-node Redis, batching, failover, metrics, and a React client.
+- **[FinShot](https://github.com/ReaperXD67/FinShot):** TypeScript, React, Express, MongoDB, analytics, and document extraction.
 
 This makes Full-stack a direct extension of demonstrated work. Frontend remains a strong alternative. Data Scientist, Security Engineer, and Android Engineer are credible but would rely on older or narrower evidence. Principal/Staff, Engineering Manager, and architecture case studies would make broader seniority claims than the public evidence can safely support.
 
@@ -43,7 +43,7 @@ For browser resilience, IndexedDB offers asynchronous transactional storage for 
 The differentiator should not be decorative scope. It should be a reviewer-visible correctness story:
 
 1. An operator action appears immediately.
-2. The mutation ledger records intent, causal parent, version precondition, and idempotency key.
+2. The mutation ledger records intent and version preconditions; the exported transcript preserves command IDs, attempts, and idempotency evidence.
 3. A deterministic simulator produces acknowledgements, rejection, duplicate delivery, and conflicts.
 4. The client reconciles or rolls back without corrupting confirmed state.
 5. The same scenario is replayable in tests and in the UI.
@@ -65,8 +65,8 @@ The differentiator should not be decorative scope. It should be a reviewer-visib
 | Conditional writes prevent lost updates | [RFC 9110 §13.1.1](https://www.rfc-editor.org/rfc/rfc9110.html#name-if-match) | IETF / RFC Editor | 2026-09-03 | Standards-track protocol specification |
 | Structured transactional browser storage | [IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) | MDN Web Docs | 2026-09-03 | Technical reference |
 | Same-origin cross-tab messaging | [Broadcast Channel API](https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API) | MDN Web Docs | 2026-09-03 | Technical reference |
+| Candidate full-stack evidence | [ReaperXD67 repositories](https://github.com/ReaperXD67?tab=repositories) | GitHub | 2026-09-03 | Public source-code portfolio |
 
 ## Research stop condition
 
 Discovery covered every published role title and format, the assessment workflow, the candidate's strongest public repositories, and primary technical sources for the chosen risk model. Further public searching would not reveal the private starter or exact rubric, so the next information gain comes from the authenticated package, not broader web research.
-

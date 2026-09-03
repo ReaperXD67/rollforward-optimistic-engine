@@ -8,11 +8,12 @@ The protected assets are canonical release state, operator intent, the idempoten
 
 | Threat | Control in this artifact |
 | --- | --- |
-| Duplicate delivery changes state twice | Stable idempotency key and replay cache |
+| Duplicate delivery changes state twice | Stable key, request fingerprint, in-flight coalescing, and replay cache |
 | Concurrent writers silently lose data | Versioned `If-Match` precondition |
 | Header and body identify different commands | Header key must equal the validated command ID |
 | Oversized or malformed input consumes resources | 32 KB JSON limit and strict Zod schema |
 | Delayed cross-tab message rewinds state | Strictly newer versions only |
+| In-flight write crosses a scenario reset | Client epoch and server generation fence |
 | Script injection through release or actor text | React text rendering; no raw HTML injection |
 | Dependency drift or known vulnerable package | Locked install, `npm audit`, and CI verification |
 | Unnecessary server fingerprinting | Framework header disabled and Helmet defaults |
