@@ -20,15 +20,53 @@ The current first checkpoint contains the role decision and architecture brief. 
 4. Inspect the mutation ledger and replay the deterministic scenario.
 5. Run the test suite to verify the same invariants without the UI.
 
+## Run locally
+
+Requires Node.js 24 or newer.
+
+```bash
+npm install
+npm run dev
+```
+
+The product runs at `http://localhost:5173`; the API runs at `http://localhost:8787`.
+
+```bash
+npm run check
+```
+
+`check` runs static analysis, the reducer/API test suite, and both production builds.
+
+## Architecture at a glance
+
+```text
+operator intent
+      |
+      v
+pure optimistic reducer ---> projected interface
+      |
+      v
+per-resource causal queue
+      |
+      v
+conditional HTTP command ---> deterministic chaos edge
+      |                              |
+      +---- ack / retry / 412 <------+ 
+                     |
+                     v
+              canonical snapshot
+```
+
+The UI never mutates canonical data. It renders a projection of confirmed releases plus active intent. The API requires both `Idempotency-Key` and `If-Match`, allowing retries without duplicated effects and conflicts without lost updates.
+
 ## Status
 
 - [x] Assessment and role research
 - [x] Full-stack scope selected
 - [x] Optimistic consistency model specified
-- [ ] Application foundation
-- [ ] Interactive command deck
+- [x] Application foundation
+- [x] Interactive command deck
 - [ ] Adversarial tests and accessibility pass
 - [ ] Final reviewer evidence
 
 > This repository does not contain Anzibloom's private starter package. The published assessment rules state that the package is downloaded only after starting the fixed 24-hour attempt. Material AI assistance will be disclosed here and in `DECISIONS.md` before any official submission.
-
