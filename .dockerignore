@@ -1,0 +1,11 @@
+.git
+.github
+.impeccable
+.playwright-cli
+dist
+node_modules
+output
+playwright-report
+test-results
+tmp
+*.log

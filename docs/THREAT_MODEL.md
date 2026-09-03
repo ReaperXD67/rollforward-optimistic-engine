@@ -1,6 +1,6 @@
 # Threat model
 
-ROLLFORWARD is a local assessment artifact. It has a browser client, an HTTP command API, an in-memory canonical store, and a deterministic fault simulator. It is not deployed as a multi-tenant service.
+ROLLFORWARD is a public assessment artifact. It has a browser client, an HTTP command API, isolated in-memory canonical stores, and a deterministic fault simulator. It is not represented as an authenticated multi-tenant service.
 
 ## Assets and trust boundaries
 
@@ -14,6 +14,8 @@ The protected assets are canonical release state, operator intent, the idempoten
 | Oversized or malformed input consumes resources | 32 KB JSON limit and strict Zod schema |
 | Delayed cross-tab message rewinds state | Strictly newer versions only |
 | In-flight write crosses a scenario reset | Client epoch and server generation fence |
+| Anonymous reviewers interfere with each other | Browser-stable scenario UUID, per-scenario state, 30-minute TTL, and LRU capacity bound |
+| Scenario identifiers exhaust process memory | Strict UUID validation, 256-context cap, idle expiry, and 512-result replay cap per context |
 | Script injection through release or actor text | React text rendering; no raw HTML injection |
 | Dependency or workflow-action drift | Locked npm install, SHA-pinned workflow actions, Dependabot, audit, and CI verification |
 | Unnecessary server fingerprinting | Framework header disabled and Helmet defaults |

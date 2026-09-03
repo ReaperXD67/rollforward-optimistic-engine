@@ -8,12 +8,13 @@ flowchart LR
     B --> C[Optimistic projection]
     B --> D[IndexedDB outbox]
     D --> E[Per-resource scheduler]
-    E -- Idempotency-Key + If-Match --> F[Command API]
-    F --> G[Deterministic chaos edge]
-    G -- 200 --> H[Canonical release]
-    G -- 503 --> I[Bounded retry]
+    E -- X-Scenario-Id --> F[Bounded scenario registry]
+    F -- Idempotency-Key + If-Match --> G[Command API]
+    G --> X[Deterministic chaos edge]
+    X -- 200 --> H[Canonical release]
+    X -- 503 --> I[Bounded retry]
     I --> E
-    G -- 412 --> J[Rollback + latest truth]
+    X -- 412 --> J[Rollback + latest truth]
     H --> K[BroadcastChannel]
     H --> B
     J --> B
@@ -42,6 +43,7 @@ The projected layer is derived, never stored. Rollback therefore means changing 
 | I-08 | Cross-tab delivery cannot rewind state | Strictly monotonic version merge | reducer merge test |
 | I-09 | Curated chaos can be replayed exactly without cross-tab ID collisions | Tab-scoped UUIDs and semantic, attempt-sensitive chaos coordinates | identity and chaos tests |
 | I-10 | Reset is a causal boundary | Client epoch and server generation fence | reset race test |
+| I-11 | Anonymous reviewers cannot mutate one another’s scenario | Browser-stable UUID selects a bounded LRU/TTL server context | API isolation and registry eviction tests |
 
 ## HTTP command contract
 
@@ -50,6 +52,7 @@ POST /api/releases/release-1/commands
 Idempotency-Key: 15a1...c901
 If-Match: "7"
 X-Mutation-Attempt: 2
+X-Scenario-Id: 9c4f...7a11
 Content-Type: application/json
 
 {
@@ -77,4 +80,4 @@ The key must equal the command ID. A successful replay returns the original acce
 
 ## Deliberate non-goals
 
-This is a focused local assessment artifact, not a pretend production platform. It does not include identity, tenancy, a durable distributed idempotency store, automatic semantic conflict merging, or a WebSocket service. A production extension would place the same command contract behind authenticated tenant authorization, a transactional database, a shared idempotency index, rate limits, and durable event delivery.
+This is a focused public assessment artifact, not a pretend production platform. Browser scenarios are isolated only within one process and expire after inactivity. It does not include identity, durable tenancy, a distributed idempotency store, automatic semantic conflict merging, or a WebSocket service. A production extension would place the same command contract behind authenticated tenant authorization, a transactional database, a shared idempotency index, rate limits, and durable event delivery.

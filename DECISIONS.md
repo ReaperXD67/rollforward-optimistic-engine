@@ -49,14 +49,14 @@ This mirrors HTTP's `If-Match` semantics for preventing lost updates while keepi
 
 ## D-004 — Separate the domain reducer from transport and animation
 
-**Status:** Accepted  
+**Status:** Accepted
 **Decision:** Optimistic projection is a pure reducer. Persistence, retry policy, cross-tab transport, and UI motion are adapters around it.
 
 This makes race conditions testable with a deterministic clock and allows motion to be disabled under `prefers-reduced-motion` without changing correctness.
 
 ## D-005 — Make chaos deterministic
 
-**Status:** Accepted  
+**Status:** Accepted
 **Decision:** Failure scenarios use seeded pseudo-randomness and an event transcript.
 
 Random failures look impressive but produce weak evidence because a reviewer cannot reproduce them. A seed plus transcript turns the demo into an executable incident report.
@@ -85,7 +85,23 @@ The channel is a latency optimization, not a source of truth. Version monotonici
 
 **Decision:** Validate commands with Zod, require the header idempotency key to equal the command ID, cap JSON bodies, disable framework disclosure, add security headers, and run a locked dependency audit in CI.
 
-Authentication, tenant authorization, rate limiting, and a durable server-side command store are intentionally outside this local assessment artifact. The [threat model](./docs/THREAT_MODEL.md) makes those production requirements explicit rather than implying the demo already provides them.
+Authentication, tenant authorization, rate limiting, and a durable server-side command store are intentionally outside this focused assessment artifact. The [threat model](./docs/THREAT_MODEL.md) makes those production requirements explicit rather than implying the demo already provides them.
+
+## D-009 — Isolate public demo state without inventing production tenancy
+
+**Status:** Accepted
+**Decision:** A browser-stable scenario UUID selects a private in-process context containing its canonical store, chaos profile, reset generation, replay index, and in-flight command map.
+
+A public assessment cannot use one global demo store: two reviewers would reset or corrupt each other’s evidence. The registry is bounded to 256 least-recently-used contexts, expires idle contexts after 30 minutes, and retains at most 512 settled idempotency results per context. Tabs intentionally share the browser scenario while keeping distinct command identities.
+
+The alternative—claiming this as tenancy—was rejected. The UUID is not an authentication credential, and process-local state is not durable or horizontally shared. A production design would bind authenticated tenants to transactional storage and a distributed idempotency index; the demo solves concurrent presentation honestly and no more.
+
+## D-010 — Make system truth the visual spectacle
+
+**Status:** Accepted
+**Decision:** The cinematic interface visualizes live engine data instead of decorating the product with unrelated media.
+
+The Three.js truth tunnel renders canonical and projected releases as separate lanes. GSAP motion exposes the failure sequence as a scroll-controlled flight recorder, while `prefers-reduced-motion` removes nonessential movement without changing system behavior. The one-click hero scenario calls the real reset, chaos, reducer, API, retry, and acknowledgement path. Visual ambition therefore increases inspectability rather than hiding a thin implementation.
 
 ## AI assistance disclosure
 
