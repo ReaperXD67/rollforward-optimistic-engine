@@ -6,7 +6,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:8791',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -17,9 +17,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    command: 'npm run build && node scripts/start-e2e.mjs',
+    url: 'http://127.0.0.1:8791/healthz',
+    reuseExistingServer: false,
+    timeout: 45_000,
   },
 });
