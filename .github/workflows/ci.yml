@@ -29,9 +29,6 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Audit dependency graph
-        run: npm audit --audit-level=high --fetch-timeout=60000 --fetch-retries=2
-
       - name: Verify source and production builds
         run: npm run check
 

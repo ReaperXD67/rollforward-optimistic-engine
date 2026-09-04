@@ -9,6 +9,7 @@
 ### [Launch the verified production system →](https://rollforward-engine.onrender.com)
 
 [![Verification](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml)
+[![Dependency Security](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/dependency-security.yml/badge.svg)](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/dependency-security.yml)
 [![Production](https://img.shields.io/badge/production-live-00d084?style=flat-square&logo=render)](https://rollforward-engine.onrender.com)
 ![Tests](https://img.shields.io/badge/tests-45%20passing-3157dc?style=flat-square)
 ![Node](https://img.shields.io/badge/Node.js-24-11141a?style=flat-square&logo=nodedotjs)
@@ -121,7 +122,7 @@ PLAYWRIGHT_BASE_URL=https://rollforward-engine.onrender.com npm run test:e2e
 
 The current evidence is **38 deterministic unit/integration tests + 7 real-browser journeys**. The browser suite exercises the guided failure path, optimistic convergence, IndexedDB reload recovery, explicit conflicts, cross-tab propagation, responsive overflow, reduced motion, and axe-core accessibility at desktop and mobile widths.
 
-GitHub Actions repeats the locked install, high-severity dependency audit, source verification, production builds, Chromium installation, and browser suite on every push.
+GitHub Actions repeats the locked install, source verification, production builds, Chromium installation, and browser suite on every push. A separate pinned Google OSV workflow scans the lockfile on every main push and every week, fails on known vulnerabilities, and publishes SARIF evidence to GitHub Security.
 
 ## Production-shaped delivery
 
