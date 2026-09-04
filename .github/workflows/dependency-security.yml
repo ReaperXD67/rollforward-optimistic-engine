@@ -10,7 +10,6 @@ on:
 permissions:
   actions: read
   contents: read
-  security-events: write
 
 jobs:
   scan:
@@ -19,4 +18,4 @@ jobs:
       scan-args: |-
         --lockfile=package-lock.json
       fail-on-vuln: true
-      upload-sarif: true
+      upload-sarif: false

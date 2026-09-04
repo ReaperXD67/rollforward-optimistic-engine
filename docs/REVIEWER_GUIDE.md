@@ -53,7 +53,7 @@ To execute the same browser evidence against production:
 PLAYWRIGHT_BASE_URL=https://rollforward-engine.onrender.com npm run test:e2e
 ```
 
-`npm run check` runs ESLint, 38 deterministic unit/API tests, and both production builds. Seven Playwright scenarios exercise the guided promise, browser state, IndexedDB, deterministic contention, multiple tabs, reduced-motion behavior, responsive overflow, and axe-core accessibility rules. GitHub Actions repeats the locked install, source/build verification, Chromium installation, and browser suite on every push. A separate pinned Google OSV workflow scans `package-lock.json` on every main push and weekly, fails on known vulnerabilities, and uploads SARIF evidence.
+`npm run check` runs ESLint, 38 deterministic unit/API tests, and both production builds. Seven Playwright scenarios exercise the guided promise, browser state, IndexedDB, deterministic contention, multiple tabs, reduced-motion behavior, responsive overflow, and axe-core accessibility rules. GitHub Actions repeats the locked install, source/build verification, Chromium installation, and browser suite on every push. A separate pinned Google OSV workflow scans `package-lock.json` on every main push and weekly, fails on known vulnerabilities, and retains its SARIF artifact with the run.
 
 The live production deployment was verified independently: `/`, `/healthz`, and `/api/snapshot` returned `200`; browser scenario isolation was present; CSP, HSTS, frame, and MIME protections were active; and all seven Playwright journeys passed against the public URL.
 
