@@ -15,7 +15,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Audit dependency graph
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --fetch-timeout=60000 --fetch-retries=2
 
       - name: Verify source and production builds
         run: npm run check
