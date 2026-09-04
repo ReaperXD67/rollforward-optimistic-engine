@@ -4,7 +4,7 @@ This repository is the recommended proof for the **Full-stack Engineer** assessm
 
 ## The 90-second path
 
-1. Open the deployed product, or run `npm install && npm run dev` and visit `http://localhost:5173`.
+1. Open the [deployed product](https://rollforward-engine.onrender.com), or run `npm install && npm run dev` and visit `http://localhost:5173`.
 2. Press **Run the failure path** in the hero, then enter **Break the network. Keep the intent.**
 3. The guided path selects **Long tail** and advances **Atlas search relevance** through the real engine.
 4. Observe the stage change immediately while the chip says `projected`.
@@ -48,9 +48,15 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+To execute the same browser evidence against production:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://rollforward-engine.onrender.com npm run test:e2e
+```
+
 `npm run check` runs ESLint, 38 deterministic unit/API tests, and both production builds. Seven Playwright scenarios exercise the guided promise, browser state, IndexedDB, deterministic contention, multiple tabs, reduced-motion behavior, responsive overflow, and axe-core accessibility rules. GitHub Actions repeats the locked install, audit, source/build verification, Chromium installation, and browser suite on every push.
 
-The production artifact was also smoke-tested as one Express process: `/`, `/healthz`, and `/api/snapshot` returned `200`; the app shell was served; the snapshot contained three releases with `Cache-Control: no-store`; Helmet's content security and `nosniff` headers were present; and `X-Powered-By` was absent.
+The live production deployment was verified independently: `/`, `/healthz`, and `/api/snapshot` returned `200`; browser scenario isolation was present; CSP, HSTS, frame, and MIME protections were active; and all seven Playwright journeys passed against the public URL.
 
 ## What I would discuss in review
 

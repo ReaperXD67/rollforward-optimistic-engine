@@ -6,7 +6,10 @@
 
 **A full-stack optimistic release engine designed to stay honest when the network is not.**
 
+### [Launch the verified production system →](https://rollforward-engine.onrender.com)
+
 [![Verification](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/rollforward-optimistic-engine/actions/workflows/ci.yml)
+[![Production](https://img.shields.io/badge/production-live-00d084?style=flat-square&logo=render)](https://rollforward-engine.onrender.com)
 ![Tests](https://img.shields.io/badge/tests-45%20passing-3157dc?style=flat-square)
 ![Node](https://img.shields.io/badge/Node.js-24-11141a?style=flat-square&logo=nodedotjs)
 ![React](https://img.shields.io/badge/React-19-11141a?style=flat-square&logo=react)
@@ -27,7 +30,7 @@ This is not a dashboard mockup. The command deck is attached to a real Express A
 
 ## The 90-second proof
 
-1. Press **Run the failure path** in the hero.
+1. Open the [live system](https://rollforward-engine.onrender.com) and press **Run the failure path** in the hero.
 2. Watch projected state advance before the request settles.
 3. Enter the command deck and observe `503 → retry_wait → same-key retry → server v5`.
 4. Switch to **Contention** and issue three writes: independent resources run concurrently while stale versions become explicit `412` rollbacks.
@@ -89,6 +92,8 @@ Canonical data is never mutated to fake responsiveness. Rollback changes the com
 
 ## Run it
 
+**Live product:** [rollforward-engine.onrender.com](https://rollforward-engine.onrender.com)
+
 Requires Node.js 24+.
 
 ```bash
@@ -108,6 +113,12 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+The same suite can challenge the deployed system directly:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://rollforward-engine.onrender.com npm run test:e2e
+```
+
 The current evidence is **38 deterministic unit/integration tests + 7 real-browser journeys**. The browser suite exercises the guided failure path, optimistic convergence, IndexedDB reload recovery, explicit conflicts, cross-tab propagation, responsive overflow, reduced motion, and axe-core accessibility at desktop and mobile widths.
 
 GitHub Actions repeats the locked install, high-severity dependency audit, source verification, production builds, Chromium installation, and browser suite on every push.
@@ -115,6 +126,8 @@ GitHub Actions repeats the locked install, high-severity dependency audit, sourc
 ## Production-shaped delivery
 
 The repository ships one deployable artifact: Express serves the compiled React client and the command API from the same origin. That keeps the content-security policy strict and the browser/API contract simple.
+
+The public Docker deployment is live at [rollforward-engine.onrender.com](https://rollforward-engine.onrender.com). Its landing page, health check, isolated API, security headers, and all seven browser journeys were verified after deployment.
 
 - Multi-stage, non-root [`Dockerfile`](./Dockerfile)
 - Declarative Singapore-region [`render.yaml`](./render.yaml)
