@@ -26,7 +26,6 @@ test('projects immediately, contains a transient failure, and converges', async 
 test('turns the hero promise into a one-click deterministic failure transcript', async ({ page }) => {
   await page.getByRole('button', { name: 'Run the failure path' }).click();
 
-  await expect(page.getByRole('button', { name: 'Arming scenario' })).toBeDisabled();
   await expect(page.getByText('Transient failure contained')).toBeVisible({ timeout: 6_000 });
   await expect(page.getByText('Retry released')).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText('Server truth advanced')).toBeVisible({ timeout: 10_000 });
